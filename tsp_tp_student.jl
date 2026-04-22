@@ -73,6 +73,9 @@ function generate_cities(n)
     error("generate_cities not implemented yet")
 end
 
+# Generate a fixed set of cities for testing
+CITIES = generate_cities(10)
+
 # ------------------------------------------------------------
 # Exercise 0.2 — Distance matrix
 # ------------------------------------------------------------
