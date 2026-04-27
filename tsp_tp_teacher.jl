@@ -1,14 +1,6 @@
 # ============================================================
 # TP: Introduction to Metaheuristics with Julia on the TSP
-# Student version
-# ============================================================
-# This file is intentionally progressive. Complete the TODOs
-# section by section, then run the associated unit tests.
-#
-# Suggested workflow:
-#   include("tsp_tp_student.jl")
-#   include("tsp_tp_tests.jl")
-#   runtests_tp(:ex01)
+# Teacher version (complete solutions)
 # ============================================================
 
 using Random
@@ -16,16 +8,9 @@ using LinearAlgebra
 using Plots
 
 # ------------------------------------------------------------
-# Visualization utilities (provided by the teacher)
-# Students are NOT asked to implement this part.
+# Visualization utilities (provided to students)
 # ------------------------------------------------------------
 
-"""
-    plot_tour(cities, sol; title_str="Tour", show_order=true)
-
-Plot a TSP tour. `cities` is an n×2 matrix, `sol` is a permutation.
-The tour is closed automatically by returning to the first city.
-"""
 function plot_tour(cities, sol; title_str="Tour", show_order=true)
     x = cities[:, 1]
     y = cities[:, 2]
@@ -42,17 +27,12 @@ function plot_tour(cities, sol; title_str="Tour", show_order=true)
 
     if show_order
         for (k, city) in enumerate(sol)
-            annotate!(x[city], y[city]-3, text(string(city), 8, :black))
+            annotate!(x[city], y[city]-2, text(string(city), 8, :black))
         end
     end
     return p
 end
 
-"""
-    compare_tours(cities, sol1, sol2; labels=("Before", "After"))
-
-Display two tours side by side.
-"""
 function compare_tours(cities, sol1, sol2; labels=("Before", "After"))
     p1 = plot_tour(cities, sol1, title_str=labels[1])
     p2 = plot_tour(cities, sol2, title_str=labels[2])
@@ -63,39 +43,25 @@ end
 # Exercise 0.1 — Generate cities
 # ------------------------------------------------------------
 
-"""
-    generate_cities(n)
-
-Return an n×2 matrix of random points in [0,100]×[0,100].
-"""
 function generate_cities(n)
-    # TODO
-    return rand(0:100, n, 2)
+    return rand(0:100,n, 2)
 end
 
-
 # Generate a fixed set of cities for testing
-CITIES = generate_cities(10)
+CITIES = generate_cities(15)
 
 # ------------------------------------------------------------
 # Exercise 0.2 — Distance matrix
 # ------------------------------------------------------------
 
-"""
-    compute_distance_matrix(cities)
-
-Return the Euclidean distance matrix associated with `cities`.
-"""
 function compute_distance_matrix(cities)
     n = size(cities, 1)
     D = zeros(n, n)
-
-    for i in 1:n 
+    for i in 1:n
         for j in 1:n
-            D[i, j] = D[j, i] = norm(cities[i, :] - cities[j, :])
+            D[i, j] = norm(cities[i, :] .- cities[j, :])
         end
     end
-
     return D
 end
 
@@ -106,13 +72,9 @@ D = compute_distance_matrix(CITIES)
 # Exercise 1.1 — Random solution
 # ------------------------------------------------------------
 
-"""
-    random_solution(n)
-
-Return a random permutation of 1:n.
-"""
 function random_solution(n)
-    return randperm(n)
+    return shuffle(1:n)
+    # return randperm(n) # alternative using built-in function
 end
 
 # Apply random solution to the generated cities
@@ -122,19 +84,13 @@ sol = random_solution(size(CITIES, 1))
 # Exercise 1.2 — Cost function
 # ------------------------------------------------------------
 
-"""
-    tour_cost(sol, D)
-
-Return the total length of the Hamiltonian cycle represented by `sol`.
-"""
 function tour_cost(sol, D)
     n = length(sol)
     cost = 0.0
-
-    for i in 1:n
-        cost += D[sol[i], sol[mod1(i + 1, n)]]
+    for i in 1:n-1
+        cost += D[sol[i], sol[i + 1]]
     end
-
+    cost += D[sol[n], sol[1]]
     return cost
 end
 
@@ -149,26 +105,26 @@ plot_tour(CITIES, sol, title_str="Random tour: $cost")
 # Exercise 1.3 — Nearest neighbor solution
 # ------------------------------------------------------------
 
-"""
-    nearest_neighbor_solution(D; start=1)
-
-Return a tour constructed by the nearest neighbor heuristic.
-"""
 function nearest_neighbor_solution(D; start=1)
     n = size(D, 1) # number of cities
     unvisited = collect(1:n) # list of unvisited cities
-    sol = Int[] # tour being constructed
+
     current = start # current city
-    push!(sol, current) # add current city to the tour
+    sol = [current] # tour being constructed
     deleteat!(unvisited, findfirst(==(current), unvisited)) # mark current city as visited
-
+    
     while !isempty(unvisited)
-        nearest = unvisited[argmin(D[current, unvisited])]
-        push!(sol, nearest)
-        deleteat!(unvisited, findfirst(==(nearest), unvisited))
-        current = nearest
+        # find nearest unvisited city
+        distances = [D[current, j] for j in unvisited] # distances to unvisited cities
+        idx = argmin(distances) # index of nearest unvisited city in the unvisited list
+        
+        next_city = unvisited[idx] # actual city index of the nearest unvisited city
+        push!(sol, next_city) # add next city to the tour
+        
+        deleteat!(unvisited, idx) # mark next city as visited
+        current = next_city # move to the next city
     end
-
+    
     return sol
 end
 
@@ -185,19 +141,13 @@ compare_tours(CITIES, sol, nn_sol, labels=("Random tour: $cost",
 # Exercise 2.1 — Swap move
 # ------------------------------------------------------------
 
-"""
-    swap_move(sol, i, j)
-
-Return a NEW solution where positions i and j are swapped.
-Do not modify the input solution.
-"""
 function swap_move(sol, i, j)
     new_sol = copy(sol)
     new_sol[i], new_sol[j] = new_sol[j], new_sol[i]
     return new_sol
 end
 
-# Apply swap move to the random solution on position 1 and 2
+# Apply swap move to the random solution
 println("Original solution: ", sol)
 new_sol = swap_move(sol, 1, 2)
 println("New solution after swap: ", new_sol)
@@ -211,14 +161,9 @@ compare_tours(CITIES, sol, new_sol, labels=("Before swap: $cost", "After swap: $
 # Exercise 2.2 — Random swap neighbor
 # ------------------------------------------------------------
 
-"""
-    random_swap_neighbor(sol)
-
-Pick two indices at random and return the swapped solution.
-"""
 function random_swap_neighbor(sol)
     n = length(sol)
-    i, j = sort(randperm(n)[1:2])
+    i, j = rand(1:n, 2)
     return swap_move(sol, i, j)
 end
 
@@ -237,15 +182,10 @@ compare_tours(CITIES, sol, random_neighbor, labels=("Current solution: $cost", "
 # Exercise 2.3 — Insert move
 # ------------------------------------------------------------
 
-"""
-    insert_move(sol, i, j)
-
-Remove the element at position i and insert it at position j.
-Return a NEW solution.
-"""
 function insert_move(sol, i, j)
     new_sol = copy(sol)
-    city = splice!(new_sol, i)
+    city = new_sol[i]
+    deleteat!(new_sol, i)
     insert!(new_sol, j, city)
     return new_sol
 end
@@ -264,15 +204,9 @@ compare_tours(CITIES, sol, inserted_sol, labels=("Current solution: $cost", "Aft
 # Exercise 2.4 — 2-opt move
 # ------------------------------------------------------------
 
-"""
-    two_opt_move(sol, i, j)
-
-Reverse the subsequence from i to j included.
-Assume 1 <= i <= j <= n.
-"""
 function two_opt_move(sol, i, j)
     new_sol = copy(sol)
-    reverse!(new_sol, i, j)
+    new_sol[i:j] = reverse(new_sol[i:j])
     return new_sol
 end
 
@@ -286,17 +220,11 @@ println("Cost after 2-opt move: ", two_opt_cost)
 # Visualize the 2-opt move
 compare_tours(CITIES, sol, two_opt_sol, labels=("Current solution: $cost", "After 2-opt move: $two_opt_cost"))
 
+
 # ------------------------------------------------------------
-# Exercise 3.1 — Best neighbor with swap
+# Helper functions for best neighbors
 # ------------------------------------------------------------
 
-"""
-    best_swap_neighbor(sol, D)
-
-Explore all swap neighbors and return
-    (best_sol, best_cost, improved)
-where `improved` is true iff a better neighbor was found.
-"""
 function best_swap_neighbor(sol, D)
     current_cost = tour_cost(sol, D)
     best_sol = copy(sol)
@@ -304,13 +232,15 @@ function best_swap_neighbor(sol, D)
     improved = false
     n = length(sol)
 
-    for i in 1:n-1, j in i+1:n
-        neighbor = swap_move(sol, i, j)
-        c = tour_cost(neighbor, D)
-        if c < best_cost
-            best_sol = neighbor
-            best_cost = c
-            improved = true
+    for i in 1:n-1
+        for j in i+1:n
+            candidate = swap_move(sol, i, j)
+            candidate_cost = tour_cost(candidate, D)
+            if candidate_cost < best_cost
+                best_sol = candidate
+                best_cost = candidate_cost
+                improved = true
+            end
         end
     end
 
@@ -326,36 +256,69 @@ println("Improvement found: ", improved)
 # Visualize the best swap neighbor
 compare_tours(CITIES, sol, best_swap_sol, labels=("Current solution: $cost", "Best swap neighbor: $(round(best_swap_cost, digits=2))"))
 
+function best_insert_neighbor(sol, D)
+    current_cost = tour_cost(sol, D)
+    best_sol = copy(sol)
+    best_cost = current_cost
+    improved = false
+    n = length(sol)
 
-# Other functions for 
-# - best_insert_neighbor and 
-# - best_two_opt_neighbor 
-# will be directly provided
+    for i in 1:n
+        for j in 1:n
+            if i == j
+                continue
+            end
+            candidate = insert_move(sol, i, j)
+            candidate_cost = tour_cost(candidate, D)
+            if candidate_cost < best_cost
+                best_sol = candidate
+                best_cost = candidate_cost
+                improved = true
+            end
+        end
+    end
 
+    return best_sol, best_cost, improved
+end
+
+function best_two_opt_neighbor(sol, D)
+    current_cost = tour_cost(sol, D)
+    best_sol = copy(sol)
+    best_cost = current_cost
+    improved = false
+    n = length(sol)
+
+    for i in 1:n-1
+        for j in i+1:n
+            candidate = two_opt_move(sol, i, j)
+            candidate_cost = tour_cost(candidate, D)
+            if candidate_cost < best_cost
+                best_sol = candidate
+                best_cost = candidate_cost
+                improved = true
+            end
+        end
+    end
+
+    return best_sol, best_cost, improved
+end
 
 # ------------------------------------------------------------
 # Exercise 3.2 — Local search (descent)
 # ------------------------------------------------------------
 
-"""
-    local_search(sol, D; max_iter=1000)
-
-Repeatedly move to the best improving swap neighbor.
-Return:
-    (best_sol, best_cost, history)
-where history contains the sequence of objective values.
-"""
 function local_search(sol, D; max_iter=1000)
     current = copy(sol)
     current_cost = tour_cost(current, D)
     history = [current_cost]
 
     for _ in 1:max_iter
-        new_sol, new_cost, improved = best_swap_neighbor(current, D)
+        neighbor, neighbor_cost, improved = best_swap_neighbor(current, D)
         if !improved
             break
         end
-        current, current_cost = new_sol, new_cost
+        current = neighbor
+        current_cost = neighbor_cost
         push!(history, current_cost)
     end
 
@@ -374,31 +337,21 @@ compare_tours(CITIES, sol, local_sol, labels=("Current solution: $cost", "Local 
 plot(history, title="Local Search Cost History", xlabel="Iteration", ylabel="Cost", legend=false)
 
 # ------------------------------------------------------------
-# Exercise 4.1 — Acceptance rule for simulated annealing
+# Exercise 4.1 — Acceptance rule
 # ------------------------------------------------------------
 
-"""
-    accept_move(delta, T)
-
-If delta < 0, accept.
-Otherwise accept with probability exp(-delta / T).
-"""
 function accept_move(delta, T)
-    return delta < 0 || rand() < exp(-delta / T)
+    if delta < 0
+        return true
+    else
+        return rand() < exp(-delta / T)
+    end
 end
 
 # ------------------------------------------------------------
 # Exercise 4.2 — Simulated annealing
 # ------------------------------------------------------------
 
-"""
-    simulated_annealing(sol, D; T0=1.0, alpha=0.995, max_iter=10_000)
-
-Use random swap neighbors and geometric cooling.
-Return:
-    (best_sol, best_cost, history)
-where history stores the best cost seen so far.
-"""
 function simulated_annealing(sol, D; T0=1.0, alpha=0.995, max_iter=10_000)
     current = copy(sol)
     current_cost = tour_cost(current, D)
@@ -411,14 +364,18 @@ function simulated_annealing(sol, D; T0=1.0, alpha=0.995, max_iter=10_000)
         neighbor = random_swap_neighbor(current)
         neighbor_cost = tour_cost(neighbor, D)
         delta = neighbor_cost - current_cost
+
         if accept_move(delta, T)
-            current, current_cost = neighbor, neighbor_cost
+            current = neighbor
+            current_cost = neighbor_cost
+            if current_cost < best_cost
+                best = copy(current)
+                best_cost = current_cost
+            end
         end
-        if current_cost < best_cost
-            best, best_cost = copy(current), current_cost
-        end
-        T *= alpha
+
         push!(history, best_cost)
+        T *= alpha
     end
 
     return best, best_cost, history
@@ -434,67 +391,50 @@ println("Cost of simulated annealing solution: ", round(sa_cost, digits=2))
 compare_tours(CITIES, sol, sa_sol, labels=("Current solution: $cost", "Simulated annealing solution: $(round(sa_cost, digits=2))"))
 
 # Plot the cost history of simulated annealing
-plot(sa_history, title="Simulated Annealing Cost History", xlabel="Iteration", ylabel="Best Cost", legend=false)
+plot(sa_history, title="Simulated Annealing Cost History", xlabel="Iteration", ylabel="Cost", legend=false)
 
 # ------------------------------------------------------------
 # Exercise 5.1 — Shake function for VND/VNS
 # ------------------------------------------------------------
 
-"""
-    shake(sol, k)
-
-Apply a random move according to neighborhood k:
-  k = 1 -> swap
-  k = 2 -> insert
-  k = 3 -> 2-opt
-Return the perturbed solution.
-"""
 function shake(sol, k)
     n = length(sol)
-    i, j = sort(randperm(n)[1:2])
+    i, j = sort(rand(1:n, 2))
     if k == 1
         return swap_move(sol, i, j)
     elseif k == 2
         return insert_move(sol, i, j)
-    else
+    elseif k == 3
         return two_opt_move(sol, i, j)
+    else
+        error("Unknown neighborhood k = $k")
     end
 end
 
 # ------------------------------------------------------------
-# Exercise 5.2 — Variable Neighborhood Descent (VND)
+# Exercise 5.2 — VND
 # ------------------------------------------------------------
 
-"""
-    VND(sol, D)
-
-Neighborhood order:
-  1. swap
-  2. insert
-  3. 2-opt
-
-When an improvement is found, restart from the first neighborhood.
-Return:
-    (best_sol, best_cost, history)
-"""
 function VND(sol, D)
     current = copy(sol)
     current_cost = tour_cost(current, D)
     history = [current_cost]
-
     k = 1
+
     while k <= 3
         if k == 1
-            new_sol, new_cost, improved = best_swap_neighbor(current, D)
+            candidate, candidate_cost, improved = best_swap_neighbor(current, D)
         elseif k == 2
-            new_sol, new_cost, improved = best_insert_neighbor(current, D)
+            candidate, candidate_cost, improved = best_insert_neighbor(current, D)
         else
-            new_sol, new_cost, improved = best_two_opt_neighbor(current, D)
+            candidate, candidate_cost, improved = best_two_opt_neighbor(current, D)
         end
+
         if improved
-            current, current_cost = new_sol, new_cost
+            current = candidate
+            current_cost = candidate_cost
             push!(history, current_cost)
-            k = 1  # restart from first neighborhood
+            k = 1
         else
             k += 1
         end
@@ -512,39 +452,30 @@ println("Cost of VND solution: ", round(vnd_cost, digits=2))
 compare_tours(CITIES, sol, vnd_sol, labels=("Current solution: $cost", "VND solution: $(round(vnd_cost, digits=2))"))
 
 # ------------------------------------------------------------
-# Exercise 5.3 — Variable Neighborhood Search (VNS)
+# Exercise 5.3 — VNS
 # ------------------------------------------------------------
 
-"""
-    VNS(sol, D; max_iter=200)
-
-At each iteration:
-  1. shake in neighborhood k
-  2. apply VND
-  3. if improved, restart with k = 1
-     otherwise move to the next neighborhood
-
-Return:
-    (best_sol, best_cost, history)
-"""
 function VNS(sol, D; max_iter=200)
     current = copy(sol)
     current_cost = tour_cost(current, D)
     history = [current_cost]
 
-    k = 1
-    iter = 0
-    while iter < max_iter
-        perturbed = shake(current, k)
-        new_sol, new_cost, _ = VND(perturbed, D)
-        iter += 1
-        if new_cost < current_cost
-            current, current_cost = new_sol, new_cost
-            push!(history, current_cost)
-            k = 1
-        else
-            k = k < 3 ? k + 1 : 1
+    iter = 1
+    while iter <= max_iter
+        k = 1
+        while k <= 3
+            shaken = shake(current, k)
+            local_sol, local_cost, _ = VND(shaken, D)
+            if local_cost < current_cost
+                current = local_sol
+                current_cost = local_cost
+                push!(history, current_cost)
+                k = 1
+            else
+                k += 1
+            end
         end
+        iter += 1
     end
 
     return current, current_cost, history

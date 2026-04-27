@@ -1,14 +1,6 @@
 # ============================================================
 # TP: Introduction to Metaheuristics with Julia on the TSP
-# Student version
-# ============================================================
-# This file is intentionally progressive. Complete the TODOs
-# section by section, then run the associated unit tests.
-#
-# Suggested workflow:
-#   include("tsp_tp_student.jl")
-#   include("tsp_tp_tests.jl")
-#   runtests_tp(:ex01)
+# Solution version
 # ============================================================
 
 using Random
@@ -69,7 +61,6 @@ end
 Return an n×2 matrix of random points in [0,100]×[0,100].
 """
 function generate_cities(n)
-    # TODO
     return rand(0:100, n, 2)
 end
 
@@ -89,11 +80,8 @@ Return the Euclidean distance matrix associated with `cities`.
 function compute_distance_matrix(cities)
     n = size(cities, 1)
     D = zeros(n, n)
-
-    for i in 1:n 
-        for j in 1:n
-            D[i, j] = D[j, i] = norm(cities[i, :] - cities[j, :])
-        end
+    for i in 1:n, j in 1:n
+        D[i, j] = D[j, i] = norm(cities[i, :] - cities[j, :])
     end
 
     return D
@@ -570,4 +558,3 @@ function demo_instance(n=20; seed=1234)
     sol = random_solution(n)
     return cities, D, sol
 end
-
