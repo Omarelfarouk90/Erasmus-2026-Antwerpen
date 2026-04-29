@@ -306,7 +306,8 @@ function best_swap_neighbor(sol, D)
 end
 
 # Apply best swap neighbor to the random solution
-best_swap_sol, best_swap_cost, improved = best_swap_neighbor(sol, D)
+best_swap_sol, best_swap_cost, improved = best_swap_neighbor(nn_sol, D)
+#best_swap_sol, best_swap_cost, improved = best_swap_neighbor(sol, D)
 println("Best swap neighbor: ", best_swap_sol)
 println("Cost of best swap neighbor: ", round(best_swap_cost, digits=2))
 println("Improvement found: ", improved)
@@ -316,9 +317,72 @@ compare_tours(CITIES, sol, best_swap_sol, labels=("Current solution: $cost", "Be
 
 
 # Other functions for 
-# - best_insert_neighbor and 
+# - best_insert_neighbor 
+function best_insert_neighbor(sol, D)
+    current_cost = tour_cost(sol, D)
+    best_sol = copy(sol)
+    best_cost = current_cost
+    improved = false
+    n = length(sol)
+    
+    for i in 1:n
+        for j in 1:n
+            if i ≠ j
+                neighbor = insert_move(sol, i, j)
+                c = tour_cost(neighbor, D)
+                if c < best_cost
+                    best_sol = neighbor
+                    best_cost = c
+                    improved = true
+                end
+            end
+        end
+    end
+    
+    return best_sol, best_cost, improved
+end
+
+# Apply best swap neighbor to the random solution
+#best_swap_sol, best_swap_cost, improved = best_insert_neighbor(sol, D)
+best_insert_sol, best_insert_cost, improved = best_insert_neighbor(sol, D)
+println("Best insert neighbor: ", best_insert_sol)
+println("Cost of best insert neighbor: ", round(best_insert_cost, digits=2))
+println("Improvement found: ", improved)
+
+# Visualize the best insert neighbor
+compare_tours(CITIES, sol, best_insert_sol, labels=("Current solution: $cost", "Best insert neighbor: $(round(best_insert_cost, digits=2))"))
+
 # - best_two_opt_neighbor 
+function best_two_opt_neighbor(sol, D)
+    current_cost = tour_cost(sol, D)
+    best_sol = copy(sol)
+    best_cost = current_cost
+    improved = false
+    n = length(sol)
+    
+    for i in 1:n
+        for j in 1:n
+            
+            neighbor = two_opt_move(sol, i, j)
+            c = tour_cost(neighbor, D)
+            if c < best_cost
+                best_sol = neighbor
+                best_cost = c
+                improved = true
+            end
+        end
+    end
+    
+    return best_sol, best_cost, improved
+end
 # will be directly provided
+best_two_opt_sol, best_two_opt_cost, improved = best_two_opt_neighbor(sol, D)
+println("Best two-opt neighbor: ", best_two_opt_sol)
+println("Cost of best two-opt neighbor: ", round(best_two_opt_cost, digits=2))
+println("Improvement found: ", improved)
+
+# Visualize the best two-opt neighbor
+compare_tours(CITIES, sol, best_two_opt_sol, labels=("Current solution: $cost", "Best two-opt neighbor: $(round(best_two_opt_cost, digits=2))"))
 
 
 # ------------------------------------------------------------

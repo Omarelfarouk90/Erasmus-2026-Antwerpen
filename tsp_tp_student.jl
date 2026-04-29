@@ -326,12 +326,77 @@ println("Improvement found: ", improved)
 # Visualize the best swap neighbor
 compare_tours(CITIES, sol, best_swap_sol, labels=("Current solution: $cost", "Best swap neighbor: $(round(best_swap_cost, digits=2))"))
 
+# - best_two_opt_neighbor 
+function best_two_opt_neighbor(sol, D)
+    current_cost = tour_cost(sol, D)
+    best_sol = copy(sol)
+    best_cost = current_cost
+    improved = false
+    n = length(sol)
+    
+    for i in 1:n
+        for j in 1:n
+            
+            neighbor = two_opt_move(sol, i, j)
+            c = tour_cost(neighbor, D)
+            if c < best_cost
+                best_sol = neighbor
+                best_cost = c
+                improved = true
+            end
+        end
+    end
+    
+    return best_sol, best_cost, improved
+end
+# will be directly provided
+best_two_opt_sol, best_two_opt_cost, improved = best_two_opt_neighbor(sol, D)
+println("Best two-opt neighbor: ", best_two_opt_sol)
+println("Cost of best two-opt neighbor: ", round(best_two_opt_cost, digits=2))
+println("Improvement found: ", improved)
+
+# Visualize the best two-opt neighbor
+compare_tours(CITIES, sol, best_two_opt_sol, labels=("Current solution: $cost", "Best two-opt neighbor: $(round(best_two_opt_cost, digits=2))"))
 
 # Other functions for 
 # - best_insert_neighbor and 
 # - best_two_opt_neighbor 
 # will be directly provided
+# Other functions for 
+# - best_insert_neighbor 
+function best_insert_neighbor(sol, D)
+    current_cost = tour_cost(sol, D)
+    best_sol = copy(sol)
+    best_cost = current_cost
+    improved = false
+    n = length(sol)
+    
+    for i in 1:n
+        for j in 1:n
+            if i ≠ j
+                neighbor = insert_move(sol, i, j)
+                c = tour_cost(neighbor, D)
+                if c < best_cost
+                    best_sol = neighbor
+                    best_cost = c
+                    improved = true
+                end
+            end
+        end
+    end
+    
+    return best_sol, best_cost, improved
+end
 
+# Apply best swap neighbor to the random solution
+#best_swap_sol, best_swap_cost, improved = best_insert_neighbor(sol, D)
+best_insert_sol, best_insert_cost, improved = best_insert_neighbor(sol, D)
+println("Best insert neighbor: ", best_insert_sol)
+println("Cost of best insert neighbor: ", round(best_insert_cost, digits=2))
+println("Improvement found: ", improved)
+
+# Visualize the best insert neighbor
+compare_tours(CITIES, sol, best_insert_sol, labels=("Current solution: $cost", "Best insert neighbor: $(round(best_insert_cost, digits=2))"))
 
 # ------------------------------------------------------------
 # Exercise 3.2 — Local search (descent)
@@ -340,7 +405,7 @@ compare_tours(CITIES, sol, best_swap_sol, labels=("Current solution: $cost", "Be
 """
     local_search(sol, D; max_iter=1000)
 
-Repeatedly move to the best improving swap neighbor.
+Repeatedly move to the best improving insert neighbor.
 Return:
     (best_sol, best_cost, history)
 where history contains the sequence of objective values.
@@ -351,7 +416,7 @@ function local_search(sol, D; max_iter=1000)
     history = [current_cost]
 
     for _ in 1:max_iter
-        new_sol, new_cost, improved = best_swap_neighbor(current, D)
+        new_sol, new_cost, improved = best_insert_neighbor(current, D)
         if !improved
             break
         end
@@ -396,8 +461,9 @@ end
 
 Use random swap neighbors and geometric cooling.
 Return:
-    (best_sol, best_cost, history)
-where history stores the best cost seen so far.
+    (best_sol, best_cost, history, chistory)
+where history stores the best cost seen so far and chistory stores the current cost at each iteration.
+
 """
 function simulated_annealing(sol, D; T0=1.0, alpha=0.995, max_iter=10_000)
     current = copy(sol)
@@ -406,27 +472,32 @@ function simulated_annealing(sol, D; T0=1.0, alpha=0.995, max_iter=10_000)
     best_cost = current_cost
     T = T0
     history = [best_cost]
-
+    chistory = [current_cost]
     for _ in 1:max_iter
         neighbor = random_swap_neighbor(current)
         neighbor_cost = tour_cost(neighbor, D)
+        push!(chistory, neighbor_cost)
         delta = neighbor_cost - current_cost
+            
         if accept_move(delta, T)
             current, current_cost = neighbor, neighbor_cost
+            if current_cost < best_cost
+                best, best_cost = copy(current), current_cost
+            end
         end
-        if current_cost < best_cost
-            best, best_cost = copy(current), current_cost
-        end
-        T *= alpha
+        
+        
         push!(history, best_cost)
+        T *= alpha
+        
     end
 
-    return best, best_cost, history
+    return best, best_cost, history, chistory
 end
 
 # Apply simulated annealing to the random solution
 Random.seed!(4) # for reproducibility
-sa_sol, sa_cost, sa_history = simulated_annealing(sol, D; T0=1.0, alpha=0.99, max_iter=200)
+sa_sol, sa_cost, sa_history, sa_chistory = simulated_annealing(sol, D; T0=1.0, alpha=0.99, max_iter=200)
 println("Simulated annealing solution: ", sa_sol)
 println("Cost of simulated annealing solution: ", round(sa_cost, digits=2))
 
@@ -435,7 +506,8 @@ compare_tours(CITIES, sol, sa_sol, labels=("Current solution: $cost", "Simulated
 
 # Plot the cost history of simulated annealing
 plot(sa_history, title="Simulated Annealing Cost History", xlabel="Iteration", ylabel="Best Cost", legend=false)
-
+plot!(sa_chistory, title="All costs", xlabel="Iteration", ylabel="Current Cost",color =:red, legend=false)
+#Exclamation mark to plot both histories on the same graph, with different colors.
 # ------------------------------------------------------------
 # Exercise 5.1 — Shake function for VND/VNS
 # ------------------------------------------------------------
